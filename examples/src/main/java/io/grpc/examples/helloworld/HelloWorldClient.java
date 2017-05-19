@@ -16,29 +16,42 @@
 
 package io.grpc.examples.helloworld;
 
+import com.google.instrumentation.common.NonThrowingCloseable;
+import com.google.instrumentation.trace.Samplers;
+import com.google.instrumentation.trace.TraceConfig.TraceParams;
+import com.google.instrumentation.trace.TraceExporter;
+import com.google.instrumentation.trace.Tracer;
+import com.google.instrumentation.trace.Tracing;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import io.grpc.internal.AbstractManagedChannelImplBuilder;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * A simple client that requests a greeting from the {@link HelloWorldServer}.
- */
+/** A simple client that requests a greeting from the {@link HelloWorldServer}. */
 public class HelloWorldClient {
   private static final Logger logger = Logger.getLogger(HelloWorldClient.class.getName());
+  private static final Tracer tracer = Tracing.getTracer();
 
   private final ManagedChannel channel;
   private final GreeterGrpc.GreeterBlockingStub blockingStub;
 
   /** Construct client connecting to HelloWorld server at {@code host:port}. */
   public HelloWorldClient(String host, int port) {
-    this(ManagedChannelBuilder.forAddress(host, port)
+    channelBuilder = ManagedChannelBuilder.forAddress(host, port)
         // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
         // needing certificates.
-        .usePlaintext(true)
-        .build());
+        .usePlaintext(true);
+
+    if (channelBuilder instanceof AbstractManagedChannelImplBuilder) {
+      ((AbstractManagedChannelImplBuilder)channelBuilder).setEnableStatsTagPropagation(true);
+      ((AbstractManagedChannelImplBuilder)channelBuilder).setEnableTracing(true);
+    } else {
+      logger.warning("This should not happen.");
+    }
+    this(channelBuilder.build());
   }
 
   /** Construct client for accessing RouteGuide server using the existing channel. */
@@ -70,16 +83,23 @@ public class HelloWorldClient {
    * greeting.
    */
   public static void main(String[] args) throws Exception {
-    HelloWorldClient client = new HelloWorldClient("localhost", 50051);
-    try {
-      /* Access a service running on the local machine on port 50051 */
-      String user = "world";
-      if (args.length > 0) {
-        user = args[0]; /* Use the arg as the name to greet if provided */
+    TraceExporter.LoggingServiceHandler.registerService(Tracing.getTraceExporter());
+    Tracing.getTraceConfig()
+        .updateActiveTraceParams(
+            TraceParams.DEFAULT.toBuilder().setSampler(Samplers.alwaysSample()).build());
+    try (NonThrowingCloseable ss =
+        tracer.spanBuilder("MyRootSpan").becomeRoot().startScopedSpan()) {
+      HelloWorldClient client = new HelloWorldClient("localhost", 50051);
+      try {
+        /* Access a service running on the local machine on port 50051 */
+        String user = "world";
+        if (args.length > 0) {
+          user = args[0]; /* Use the arg as the name to greet if provided */
+        }
+        client.greet(user);
+      } finally {
+        client.shutdown();
       }
-      client.greet(user);
-    } finally {
-      client.shutdown();
     }
   }
 }

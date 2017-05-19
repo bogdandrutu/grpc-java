@@ -23,16 +23,23 @@ repositories {
 // Feel free to delete the comment at the next line. It is just for safely
 // updating the version in our release process.
 def grpcVersion = '1.6.0-SNAPSHOT' // CURRENT_GRPC_VERSION
+def opencensusVersion = '0.5.0-SNAPSHOT'
 
 dependencies {
   compile "com.google.api.grpc:proto-google-common-protos:0.1.9"
   compile "io.grpc:grpc-netty:${grpcVersion}"
   compile "io.grpc:grpc-protobuf:${grpcVersion}"
   compile "io.grpc:grpc-stub:${grpcVersion}"
+  compile "io.opencensus:opencensus-impl:${opencensusVersion}"
 
   testCompile "io.grpc:grpc-testing:${grpcVersion}"
   testCompile "junit:junit:4.11"
   testCompile "org.mockito:mockito-core:1.9.5"
+}
+
+[compileJava, compileTestJava].each() {
+  it.sourceCompatibility = 1.7
+  it.targetCompatibility = 1.7
 }
 
 protobuf {
