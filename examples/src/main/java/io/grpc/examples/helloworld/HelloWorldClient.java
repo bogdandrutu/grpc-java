@@ -19,6 +19,10 @@ package io.grpc.examples.helloworld;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import io.grpc.internal.AbstractManagedChannelImplBuilder;
+import io.opencensus.contrib.zpages.ZPageHandlers;
+import io.opencensus.trace.Tracing;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,13 +36,17 @@ public class HelloWorldClient {
   private final ManagedChannel channel;
   private final GreeterGrpc.GreeterBlockingStub blockingStub;
 
+  private static ManagedChannel createChannel(String host, int port) {
+    ManagedChannelBuilder builder = ManagedChannelBuilder.forAddress(host, port).usePlaintext(true);
+    if (builder instanceof AbstractManagedChannelImplBuilder) {
+      ((AbstractManagedChannelImplBuilder) builder).setEnableTracing(true);
+    }
+    return builder.build();
+  }
+
   /** Construct client connecting to HelloWorld server at {@code host:port}. */
   public HelloWorldClient(String host, int port) {
-    this(ManagedChannelBuilder.forAddress(host, port)
-        // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-        // needing certificates.
-        .usePlaintext(true)
-        .build());
+    this(createChannel(host, port));
   }
 
   /** Construct client for accessing RouteGuide server using the existing channel. */
@@ -70,6 +78,9 @@ public class HelloWorldClient {
    * greeting.
    */
   public static void main(String[] args) throws Exception {
+    Tracing.getExportComponent().getSampledSpanStore()
+        .registerSpanNamesForCollection(Arrays.asList("Sent.helloworld.Greeter.SayHello"));
+    ZPageHandlers.startHttpServerAndRegisterAll(50001);
     HelloWorldClient client = new HelloWorldClient("localhost", 50051);
     try {
       /* Access a service running on the local machine on port 50051 */

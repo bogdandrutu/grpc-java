@@ -19,7 +19,10 @@ package io.grpc.examples.helloworld;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.opencensus.contrib.zpages.ZPageHandlers;
+import io.opencensus.trace.Tracing;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
@@ -68,6 +71,9 @@ public class HelloWorldServer {
    * Main launches the server from the command line.
    */
   public static void main(String[] args) throws IOException, InterruptedException {
+    Tracing.getExportComponent().getSampledSpanStore()
+        .registerSpanNamesForCollection(Arrays.asList("Recv.helloworld.Greeter.SayHello"));
+    ZPageHandlers.startHttpServerAndRegisterAll(50002);
     final HelloWorldServer server = new HelloWorldServer();
     server.start();
     server.blockUntilShutdown();
