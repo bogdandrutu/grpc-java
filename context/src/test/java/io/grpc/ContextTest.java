@@ -404,7 +404,6 @@ public class ContextTest {
     assertSame("fish", FOOD.get());
     assertFalse(attached.isCancelled());
     assertNull(attached.cancellationCause());
-    assertTrue(attached.canBeCancelled());
     assertTrue(attached.isCurrent());
     assertTrue(base.isCurrent());
 
@@ -894,7 +893,6 @@ public class ContextTest {
     assertNull(cancellableAncestor(null));
 
     Context c = Context.current();
-    assertFalse(c.canBeCancelled());
     assertNull(cancellableAncestor(c));
 
     Context.CancellableContext withCancellation = c.withCancellation();
